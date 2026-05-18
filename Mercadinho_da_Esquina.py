@@ -24,6 +24,7 @@ def format_dollar(valor):
 def jogar_comercio():
     save = carregar_jogo()
     
+    # 1. TENTA CARREGAR O SAVE OU DEFINE OS VALORES INICIAIS DE FÁBRICA
     if save:
         confirmar = input("Deseja carregar o jogo salvo? (s/n): ").lower()
         if confirmar == 's':
@@ -32,22 +33,21 @@ def jogar_comercio():
             dia = save["dia"]
             popularidade = save["popularidade"]
             experiencia = save["experiencia"]
-            # ... carregar outras variáveis ...
+            print("✅ Jogo carregado com sucesso!")
+            time.sleep(1)
         else:
             save = None
 
     if not save:
-        # Se não carregou nada, usa os valores padrão
+        # Se não carregou nada (ou o usuário recusou), usa os valores padrão
         saldo = 500.0
-        estoque = {"Maçã": 10, "Pão": 10, "Leite": 5, "Ovo": 20, "Café": 5, "Chocolate": 5, "Detergente": 5}
+        estoque = {"Maçã": 10, "Pão": 10, "Leite": 5, "Ovo": 20, "Café": 5, "Chocolate": 5, "Detergente": 5, 'Arroz': 8, 'Carne': 5}
         dia = 1
         popularidade = 10
         experiencia = 0
 
-    # --- CONFIGURAÇÕES INICIAIS ---
-    saldo = 500.0
-    estoque = {"Maçã": 10, "Pão": 10, "Leite": 5, "Ovo": 20, "Café": 5, "Chocolate": 5, "Detergente": 5}
-    custo_compra_base = {"Maçã": 2.0, "Pão": 1.5, "Leite": 4.0, "Ovo": 0.50, "Café": 8.0, "Chocolate": 5.0, "Detergente": 4.50}
+    # 2. CONFIGURAÇÕES FIXAS (Itens que NÃO resetam e não dependem do save)
+    custo_compra_base = {"Maçã": 2.0, "Pão": 1.5, "Leite": 4.0, "Ovo": 0.50, "Café": 8.0, "Chocolate": 5.0, "Detergente": 4.50, "Arroz": 4.50, "Carne": 15.0}
     custo_compra = custo_compra_base.copy()
     
     # Preços para o fiscal checar
@@ -56,13 +56,11 @@ def jogar_comercio():
     duracao_evento = 0
     evento_atual = ""
     msg_evento = ""
-
     aluguel = 65.0
-    dia = 1
     total_vendas_valor = 0
-    experiencia = 0
-    popularidade = 10 
+    modificador_demanda = 1.0  # Definida aqui para evitar erros de escopo nas vendas
 
+    # --- O LOOP DO JOGO COMEÇA AQUI ---
     while saldo > 0:
         limpar_tela()
         nivel = (experiencia // 15) + 1
@@ -88,7 +86,7 @@ def jogar_comercio():
             modificador_demanda = 1.0
             custo_compra = custo_compra_base.copy()
         
-        if dia > 1 and random.random() < 0.45: # 45% de chance de novo evento
+        if dia > 1 and random.random() < 0.40: # 40% de chance de novo evento
             # CADA tupla abaixo TEM QUE TER 3 ITENS: (Mensagem, ID, Dias)
             evento = random.choice([
                 ("📈 INFLAÇÃO: Custos subiram 25%!", "inflacao", 5),
@@ -164,12 +162,12 @@ def jogar_comercio():
             time.sleep(0.7)
 
             perfis = {
-                "Econômico": {"limite": 4.2, "emoji": "💸"},
-                "Apressado": {"limite": 5.3, "emoji": "🏃"},
-                "Generoso":  {"limite": 7.2, "emoji": "💎"},
-                "Influencer": {"limite": 2.8, "emoji": "📸"},
+                "Econômico": {"limite": 2.0, "emoji": "💸"},
+                "Apressado": {"limite": 2.8, "emoji": "🏃"},
+                "Generoso":  {"limite": 3.5, "emoji": "💎"},
+                "Influencer": {"limite": 2.3, "emoji": "📸"},
                 "Fiscal":     {"emoji": "👮"},
-                "Revendedor": {"limite": 1.9, "emoji": "🚚"},
+                "Revendedor": {"limite": 1.8, "emoji": "🚚"},
                 "Visinha chata": {"limite": 1.2, "emoji": "👵"}
             }
             
