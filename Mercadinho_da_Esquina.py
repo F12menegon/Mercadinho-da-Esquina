@@ -86,14 +86,14 @@ def jogar_comercio():
             modificador_demanda = 1.0
             custo_compra = custo_compra_base.copy()
         
-        if dia > 1 and random.random() < 0.40: # 40% de chance de novo evento
-            # CADA tupla abaixo TEM QUE TER 3 ITENS: (Mensagem, ID, Dias)
+        # Correção 1: Adicionado 'duracao_evento == 0' para não sortear evento por cima de outro ativo
+        if duracao_evento == 0 and dia > 1 and random.random() < 0.40: 
             evento = random.choice([
                 ("📈 INFLAÇÃO: Custos subiram 25%!", "inflacao", 5),
                 ("⛈️ TEMPESTADE: Menos clientes hoje.", "chuva", 7),
                 ("🎉 FESTA NO BAIRRO: Clientes pagam mais!", "festa", 3),
-                ("🚨 ROUBO: Alguém roubou parte do seu estoque!", "roubo",1),
-                ("🏷️ OFERTAS IMPERDIVEIS: Todos os produtos com 30%, de desconto!", "promocao", 3)
+                ("🚨 ROUBO: Alguém roubou parte do seu estoque!", "roubo", 1),
+                ("🏷️ OFERTAS IMPERDIVEIS: Todos os produtos com 30%" "de desconto!", "promocao", 3)
             ])
             msg_evento, evento_atual, duracao_evento = evento
         
@@ -103,20 +103,24 @@ def jogar_comercio():
             if evento_atual == "inflacao":
                 custo_compra = {k: v * 1.25 for k, v in custo_compra_base.items()}
             elif evento_atual == "promocao":
-                custo_compra = {k: v * 0.30 for k, v in custo_compra_base.items()}
+                # Correção 2: Mudado para 0.70 (30% de desconto significa pagar 70% do preço original)
+                custo_compra = {k: v * 0.70 for k, v in custo_compra_base.items()} 
             elif evento_atual == "chuva":
                 modificador_demanda = 0.7
             elif evento_atual == "festa":
                 modificador_demanda = 2.1
             elif evento_atual == "roubo":
+                # Correção 3: Criada a variável fora do loop para somar e exibir o total perdido de verdade
+                total_roubado = 0 
                 for item in estoque:
                     limite_perda = int(estoque[item] // 2.3)
                     if limite_perda > 0:
                         perda = random.randint(0, limite_perda)
                         estoque[item] -= perda
-                print(f"😨 Você perdeu {perda} do seu estoque!")
+                        total_roubado += perda # Acumula o valor de cada item sorteado
+                print(f"😨 Você perdeu um total de {total_roubado} itens do seu estoque!")
             else:
-             custo_compra = custo_compra_base.copy()
+                custo_compra = custo_compra_base.copy()
 
         # --- MENU ---
         print(f"\n[1] Comprar Estoque  [2] Abrir Loja  [3] Sair do Jogo [4] Salvar Jogo")
@@ -165,6 +169,7 @@ def jogar_comercio():
                 "Econômico": {"limite": 2.0, "emoji": "💸"},
                 "Apressado": {"limite": 2.8, "emoji": "🏃"},
                 "Generoso":  {"limite": 3.5, "emoji": "💎"},
+                "Chef Gourmet": {"limite": 4.0, "emoji": "👨‍🍳"},
                 "Influencer": {"limite": 2.3, "emoji": "📸"},
                 "Fiscal":     {"emoji": "👮"},
                 "Revendedor": {"limite": 1.8, "emoji": "🚚"},
@@ -194,6 +199,13 @@ def jogar_comercio():
                         print(f" Fiscal saiu satisfeito.\n Mas pode voltar a qualquer momento...")
                     input("Precione [ENTER] para continuar...")
                     continue
+
+                # --- FILTRO EXCLUSIVO PARA O CHEF GOURMET ---
+                if nome_perfil == "Chef Gourmet":
+                    itens_caros = [item for item, custo in custo_compra_base.items() if custo >= 5.00]
+                    item_desejado = random.choice(itens_caros)
+                else:
+                    item_desejado = random.choice(list(estoque.keys()))
 
                 prod = random.choice(list(estoque.keys()))
                 custo_base_venda = custo_compra[prod]
