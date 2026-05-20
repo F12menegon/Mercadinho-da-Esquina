@@ -114,7 +114,7 @@ def jogar_comercio():
                     if limite_perda > 0:
                         perda = random.randint(0, limite_perda)
                         estoque[item] -= perda
-                print("😨 Você perdeu parte do seu estoque!")
+                print(f"😨 Você perdeu {perda} do seu estoque!")
             else:
              custo_compra = custo_compra_base.copy()
 
@@ -190,7 +190,7 @@ def jogar_comercio():
                         print(f" 🚨 MULTA! Preço abusivo em {item_checado}. Pagou {format_dollar(multa)}!")
                         print(" Se eu ver você fazendo isso de novo!\n Vou fechar seu mercadinho!")
                     else:
-                        print(f" ✅ Tudo ok com {item_checado}.")
+                        print(f" ✅ Tudo certo com {item_checado}.")
                         print(f" Fiscal saiu satisfeito.\n Mas pode voltar a qualquer momento...")
                     input("Precione [ENTER] para continuar...")
                     continue
