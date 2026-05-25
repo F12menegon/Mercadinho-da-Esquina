@@ -4,14 +4,14 @@ import time
 import json
 
 def salvar_jogo(dados):
-    with open("save_game.json", "w") as arquivo:
+    with open("save_game.json", "w", encoding="utf-8") as arquivo:
         json.dump(dados, arquivo, indent=4)
     print("\n💾 Progresso salvo com sucesso!")
     print("Quando desejar pode voltar aqui e continuar seu progresso!")
 
 def carregar_jogo():
     if os.path.exists("save_game.json"):
-        with open("save_game.json", "r") as arquivo:
+        with open("save_game.json", "r", encoding="utf-8") as arquivo:
             return json.load(arquivo)
     return None
 
@@ -24,7 +24,7 @@ def format_dollar(valor):
 def jogar_comercio():
     save = carregar_jogo()
     
-    # 1. TENTA CARREGAR O SAVE OU DEFINE OS VALORES INICIAIS DE FÁBRICA
+    # 1. CARREGAR SAVE OU VALORES DE FÁBRICA
     if save:
         confirmar = input("Deseja carregar o jogo salvo? (s/n): ").lower()
         if confirmar == 's':
@@ -39,18 +39,15 @@ def jogar_comercio():
             save = None
 
     if not save:
-        # Se não carregou nada (ou o usuário recusou), usa os valores padrão
         saldo = 500.0
         estoque = {"Maçã": 10, "Pão": 10, "Leite": 5, "Ovo": 20, "Café": 5, "Chocolate": 5, "Detergente": 5, 'Arroz': 8, 'Carne': 5}
         dia = 1
         popularidade = 10
         experiencia = 0
 
-    # 2. CONFIGURAÇÕES FIXAS (Itens que NÃO resetam e não dependem do save)
+    # 2. CONFIGURAÇÕES FIXAS
     custo_compra_base = {"Maçã": 2.0, "Pão": 1.5, "Leite": 4.0, "Ovo": 0.50, "Café": 8.0, "Chocolate": 5.0, "Detergente": 4.50, "Arroz": 4.50, "Carne": 15.0}
     custo_compra = custo_compra_base.copy()
-    
-    # Preços para o fiscal checar
     precos_tabela = {k: v * 2 for k, v in custo_compra_base.items()}
     
     duracao_evento = 0
@@ -58,7 +55,55 @@ def jogar_comercio():
     msg_evento = ""
     aluguel = 65.0
     total_vendas_valor = 0
-    modificador_demanda = 1.0  # Definida aqui para evitar erros de escopo nas vendas
+    modificador_demanda = 1.0 
+
+    # Funções e configurações movidas para FORA do while para otimização
+    def aplicar_roubo():
+        total_perdido = 0
+        for item in estoque:
+            limite_perda = int(estoque[item] // 2.3)
+            # Indentação corrigida: o if agora roda dentro do for
+            if limite_perda > 0:
+                perda = random.randint(1, limite_perda)
+                estoque[item] -= perda
+                total_perdido += perda
+                
+        if total_perdido > 0:
+            print(f"😨 Você perdeu um total de {total_perdido} itens do seu estoque!")
+        return custo_compra_base.copy()
+
+    CONFIG_EVENTOS = {
+        "inflacao": {
+            "msg": "📈 INFLAÇÃO: Custos subiram 25%!", 
+            "dias": 5, 
+            "demanda": 1.0,
+            "efeito": lambda: {k: v * 1.25 for k, v in custo_compra_base.items()}
+        },
+        "promocao": {
+            "msg": "🏷️ OFERTAS IMPERDÍVEIS: Todos os produtos com 30% de desconto!", 
+            "dias": 3, 
+            "demanda": 1.0,
+            "efeito": lambda: {k: v * 0.70 for k, v in custo_compra_base.items()}
+        },
+        "chuva": {
+            "msg": "⛈️ TEMPESTADE: Menos clientes hoje.", 
+            "dias": 7, 
+            "demanda": 0.7,
+            "efeito": None
+        },
+        "festa": {
+            "msg": "🎉 FESTA NO BAIRRO: Clientes pagam mais!", 
+            "dias": 3, 
+            "demanda": 2.1,
+            "efeito": None
+        },
+        "roubo": {
+            "msg": "🚨 ROUBO: Alguém roubou parte do seu estoque!", 
+            "dias": 1, 
+            "demanda": 1.0,
+            "efeito": aplicar_roubo # Chama a função corretamente agora
+        }
+    }
 
     # --- O LOOP DO JOGO COMEÇA AQUI ---
     while saldo > 0:
@@ -77,48 +122,28 @@ def jogar_comercio():
             print(linha)
         print(f"{'-'*48}")
 
-        # --- EVENTOS ---
+        # --- LOOP DE EVENTOS (RODADA) ---
+        # ERRO CORRIGIDO: Este bloco inteiro estava fora da identação
         if duracao_evento > 0:
             duracao_evento -= 1
-            print(f"📢 EVENTO ATIVO: {msg_evento} (Restam {duracao_evento + 1} dias)")
+            print(f"📢 EVENTO ATIVO: {msg_evento} (Restam {duracao_evento} dias)")
         else:
             evento_atual = ""
             modificador_demanda = 1.0
             custo_compra = custo_compra_base.copy()
-        
-        # Correção 1: Adicionado 'duracao_evento == 0' para não sortear evento por cima de outro ativo
-        if duracao_evento == 0 and dia > 1 and random.random() < 0.40: 
-            evento = random.choice([
-                ("📈 INFLAÇÃO: Custos subiram 25%!", "inflacao", 5),
-                ("⛈️ TEMPESTADE: Menos clientes hoje.", "chuva", 7),
-                ("🎉 FESTA NO BAIRRO: Clientes pagam mais!", "festa", 3),
-                ("🚨 ROUBO: Alguém roubou parte do seu estoque!", "roubo", 1),
-                ("🏷️ OFERTAS IMPERDIVEIS: Todos os produtos com 30%" "de desconto!", "promocao", 3)
-            ])
-            msg_evento, evento_atual, duracao_evento = evento
-        
-            duracao_evento -= 1 
+
+        if duracao_evento == 0 and dia > 1 and random.random() < 0.40:
+            evento_atual = random.choice(list(CONFIG_EVENTOS.keys()))
+            dados = CONFIG_EVENTOS[evento_atual]
+            
+            msg_evento = dados["msg"]
+            duracao_evento = dados["dias"] - 1
+            modificador_demanda = dados["demanda"]
+            
             print(f"📢 NOVO EVENTO: {msg_evento}")
             
-            if evento_atual == "inflacao":
-                custo_compra = {k: v * 1.25 for k, v in custo_compra_base.items()}
-            elif evento_atual == "promocao":
-                # Correção 2: Mudado para 0.70 (30% de desconto significa pagar 70% do preço original)
-                custo_compra = {k: v * 0.70 for k, v in custo_compra_base.items()} 
-            elif evento_atual == "chuva":
-                modificador_demanda = 0.7
-            elif evento_atual == "festa":
-                modificador_demanda = 2.1
-            elif evento_atual == "roubo":
-                # Correção 3: Criada a variável fora do loop para somar e exibir o total perdido de verdade
-                total_roubado = 0 
-                for item in estoque:
-                    limite_perda = int(estoque[item] // 2.3)
-                    if limite_perda > 0:
-                        perda = random.randint(0, limite_perda)
-                        estoque[item] -= perda
-                        total_roubado += perda # Acumula o valor de cada item sorteado
-                print(f"😨 Você perdeu um total de {total_roubado} itens do seu estoque!")
+            if dados["efeito"]:
+                custo_compra = dados["efeito"]()
             else:
                 custo_compra = custo_compra_base.copy()
 
@@ -146,7 +171,9 @@ def jogar_comercio():
                     print(f"• {item.ljust(10)}: {format_dollar(preco)}")
                 
                 compra_item = input("\nO que gostaria de comprar para o seu estoque? (Ou 'voltar'): ").capitalize()
-                if compra_item == "voltar": break
+                
+                # ERRO CORRIGIDO: O capitalize() deixa a palavra 'Voltar' com V maiúsculo. 
+                if compra_item == "Voltar": break
                 
                 if compra_item in custo_compra:
                     try:
@@ -170,10 +197,10 @@ def jogar_comercio():
                 "Apressado": {"limite": 2.8, "emoji": "🏃"},
                 "Generoso":  {"limite": 3.5, "emoji": "💎"},
                 "Chef Gourmet": {"limite": 4.0, "emoji": "👨‍🍳"},
-                "Influencer": {"limite": 2.3, "emoji": "📸"},
+                "Influencer": {"limite": 1.3, "emoji": "📸"},
                 "Fiscal":     {"emoji": "👮"},
                 "Revendedor": {"limite": 1.8, "emoji": "🚚"},
-                "Visinha chata": {"limite": 1.2, "emoji": "👵"}
+                "Vizinha chata": {"limite": 1.2, "emoji": "👵"} # Erro de digitação corrigido (Visinha -> Vizinha)
             }
             
             num_clientes = int((popularidade / 4 + nivel) * modificador_demanda)
@@ -200,19 +227,18 @@ def jogar_comercio():
                     input("Precione [ENTER] para continuar...")
                     continue
 
-                # --- FILTRO EXCLUSIVO PARA O CHEF GOURMET ---
+                # ERRO CORRIGIDO: Removida a linha que apagava a escolha 'prod' feita abaixo
                 if nome_perfil == "Chef Gourmet":
                     itens_caros = [item for item, custo in custo_compra_base.items() if custo >= 5.00]
-                    item_desejado = random.choice(itens_caros)
+                    prod = random.choice(itens_caros)
                 else:
-                    item_desejado = random.choice(list(estoque.keys()))
+                    prod = random.choice(list(estoque.keys()))
 
-                prod = random.choice(list(estoque.keys()))
                 custo_base_venda = custo_compra[prod]
                 limite_aceitavel = custo_base_venda * perfil.get("limite", 2.0)
                 if evento_atual == "festa": limite_aceitavel *= 1.2
 
-                print(f"""\n{perfil['emoji']} {nome_perfil} está a procura de {prod}.\nE está disposto a pagar até: {format_dollar(limite_aceitavel)} pelo produto.""")
+                print(f"\n{perfil['emoji']} {nome_perfil} está a procura de {prod}.\nE está disposto a pagar até: {format_dollar(limite_aceitavel)} pelo produto.")
                 
                 if estoque[prod] > 0:
                     try:
@@ -243,7 +269,7 @@ def jogar_comercio():
             # Pagamento do aluguel
             print("\n" + "-"*48)
             print(f"🏠 Pagando aluguel foi descontado: -{format_dollar(aluguel)} do seu saldo.")
-            print(f"Clientes do dia: {len(clientes_do_dia)} | Total vendas: {format_dollar(total_vendas_valor)}")
+            print(f"Clientes do dia: {len(clientes_do_dia)} | Total vendas acumulado: {format_dollar(total_vendas_valor)}")
             saldo -= aluguel
             dia += 1
             input("\n[ENTER para o próximo dia]")
@@ -255,4 +281,3 @@ def jogar_comercio():
 
 if __name__ == "__main__":
     jogar_comercio()
-
